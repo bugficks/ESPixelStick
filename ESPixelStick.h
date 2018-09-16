@@ -33,12 +33,6 @@ const char BUILD_DATE[] = __DATE__;
 #include <ESPAsyncUDP.h>
 #include <ESPAsyncWebServer.h>
 
-#if defined(ESPS_MODE_PIXEL)
-#include "PixelDriver.h"
-#elif defined(ESPS_MODE_SERIAL)
-#include "SerialDriver.h"
-#endif
-
 #include "EffectEngine.h"
 
 #define HTTP_PORT       80      /* Default web server port */
@@ -79,8 +73,39 @@ enum class DataSource : uint8_t {
     WEB
 };
 
+/* Pixel Types */
+enum class PixelType : uint8_t {
+    WS2811,
+    GECE
+};
+
+/* Color Order */
+enum class PixelColor : uint8_t {
+    RGB,
+    GRB,
+    BRG,
+    RBG,
+    GBR,
+    BGR
+};
+
+/* Serial Types */
+enum class SerialType : uint8_t {
+    DMX512,
+    RENARD
+};
+
+enum class BaudRate : uint32_t {
+    BR_38400 = 38400,
+    BR_57600 = 57600,
+    BR_115200 = 115200,
+    BR_230400 = 230400,
+    BR_250000 = 250000,
+    BR_460800 = 460800
+};
+
 // Configuration structure
-typedef struct {
+struct config_t {
     /* Device */
     String      id;             /* Device ID */
     DevCap      devmode;        /* Used for reporting device mode, not stored */
@@ -112,19 +137,20 @@ typedef struct {
     uint16_t    channel_count;  /* Number of channels */
     bool        multicast;      /* Enable multicast listener */
 
-#if defined(ESPS_MODE_PIXEL)
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
     /* Pixels */
     PixelType   pixel_type;     /* Pixel type */
     PixelColor  pixel_color;    /* Pixel color order */
     bool        gamma;          /* Use gamma map? */
     float       gammaVal;       /* gamma value to use */
     float       briteVal;       /* brightness lto use */
-#elif defined(ESPS_MODE_SERIAL)
+#endif
+#if defined(ESPS_MODE_SERIAL)
     /* Serial */
     SerialType  serial_type;    /* Serial type */
     BaudRate    baudrate;       /* Baudrate */
 #endif
-} config_t;
+} ;
 
 // Forward Declarations
 void serializeConfig(String &jsonString, bool pretty = false, bool creds = false);

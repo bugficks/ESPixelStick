@@ -29,6 +29,8 @@ extern "C" {
 #include <uart_register.h>
 }
 
+#if defined(ESPS_MODE_PIXEL)
+
 static const uint8_t    *uart_buffer;       // Buffer tracker
 static const uint8_t    *uart_buffer_tail;  // Buffer tracker
 static bool             ws2811gamma;        // Gamma flag
@@ -39,6 +41,10 @@ uint8_t PixelDriver::bOffset = 2;
 
 int PixelDriver::begin() {
     return begin(PixelType::WS2811, PixelColor::RGB, 170);
+}
+
+int PixelDriver::begin(const config_t *config) {
+    return begin(config->pixel_type, config->pixel_color, config->channel_count / 3);
 }
 
 int PixelDriver::begin(PixelType type) {
@@ -303,3 +309,11 @@ void ICACHE_RAM_ATTR PixelDriver::show() {
 uint8_t* PixelDriver::getData() {
     return pixdata;
 }
+
+void PixelDriver::setOption(const String &name, int value)
+{
+    if(name == "data_pin")
+        setPin(value);
+}
+
+#endif // #if defined(ESPS_MODE_PIXEL)

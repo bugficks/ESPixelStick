@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include "ESPixelStick.h"
 #include "EffectEngine.h"
+#include "Driver.h"
 
 // List of all the supported effects and their names
 static const EffectDesc EFFECT_LIST[] = {
@@ -16,7 +16,7 @@ static const EffectDesc EFFECT_LIST[] = {
 
 // Effect defaults
 const char DEFAULT_EFFECT[] = "Solid";
-const CRGB DEFAULT_EFFECT_COLOR = { 255, 255, 255 };
+const EffectEngine::CRGB DEFAULT_EFFECT_COLOR = { 255, 255, 255 };
 const uint8_t DEFAULT_EFFECT_BRIGHTNESS = 127;
 const bool DEFAULT_EFFECT_REVERSE = false;
 const bool DEFAULT_EFFECT_MIRROR = false;
@@ -30,7 +30,7 @@ EffectEngine::EffectEngine() {
     setMirror(DEFAULT_EFFECT_MIRROR);
 }
 
-void EffectEngine::begin(DRIVER* ledDriver, uint16_t ledCount) {
+void EffectEngine::begin(Driver* ledDriver, uint16_t ledCount) {
     _ledDriver = ledDriver;
     _ledCount = ledCount;
     _initialized = true;
@@ -65,13 +65,15 @@ void EffectEngine::setEffect(const char* effectName) {
     clearAll();
 }
 
-void EffectEngine::setPixel(uint16_t idx,  CRGB color) {
-    _ledDriver->setValue(3 * idx + 0, (color.r * _effectBrightness) >> 8);
-    _ledDriver->setValue(3 * idx + 1, (color.g * _effectBrightness) >> 8);
-    _ledDriver->setValue(3 * idx + 2, (color.b * _effectBrightness) >> 8);
+void EffectEngine::setPixel(uint16_t idx,  EffectEngine::CRGB color) {
+    if(_ledDriver) {
+        _ledDriver->setValue(3 * idx + 0, (color.r * _effectBrightness) >> 8);
+        _ledDriver->setValue(3 * idx + 1, (color.g * _effectBrightness) >> 8);
+        _ledDriver->setValue(3 * idx + 2, (color.b * _effectBrightness) >> 8);
+    }
 }
 
-void EffectEngine::setRange(uint16_t first, uint16_t len, CRGB color) {
+void EffectEngine::setRange(uint16_t first, uint16_t len, EffectEngine::CRGB color) {
     for (uint16_t i=first; i < min(uint16_t(first+len), _ledCount); i++) {
         setPixel(i, color);
     }
@@ -83,7 +85,7 @@ void EffectEngine::clearRange(uint16_t first, uint16_t len) {
     }
 }
 
-void EffectEngine::setAll(CRGB color) {
+void EffectEngine::setAll(EffectEngine::CRGB color) {
     setRange(0, _ledCount, color);
 }
 
@@ -91,7 +93,7 @@ void EffectEngine::clearAll() {
     clearRange(0, _ledCount);
 }
 
-CRGB EffectEngine::colorWheel(uint8_t pos) {
+EffectEngine::CRGB EffectEngine::colorWheel(uint8_t pos) {
     pos = 255 - pos;
     if (pos < 85) {
         return { 255 - pos * 3, 0, pos * 3};
@@ -153,7 +155,7 @@ uint16_t EffectEngine::effectRainbowCycle() {
         lc = lc / 2;
     }
     for (uint16_t i=0; i < lc; i++) {
-        CRGB color = colorWheel(((i * 256 / lc) + _effectStep) & 0xFF);
+        EffectEngine::CRGB color = colorWheel(((i * 256 / lc) + _effectStep) & 0xFF);
         uint16_t pixel = i;
         if (_effectReverse) {
             pixel = lc - 1 - pixel;
@@ -207,7 +209,7 @@ uint16_t EffectEngine::effectFireFlicker() {
   byte lum = max(_effectColor.r, max(_effectColor.g, _effectColor.b)) / rev_intensity;
   for ( int i = 0; i < _ledCount; i++) {
     byte flicker = random(lum);
-    setPixel(i, CRGB { max(_effectColor.r - flicker, 0), max(_effectColor.g - flicker, 0), max(_effectColor.b - flicker, 0) });
+    setPixel(i, EffectEngine::CRGB { max(_effectColor.r - flicker, 0), max(_effectColor.g - flicker, 0), max(_effectColor.b - flicker, 0) });
   }
   _effectStep = ++_effectStep % _ledCount;
   return _effectSpeed / 10;
@@ -245,7 +247,7 @@ uint16_t EffectEngine::effectLightning() {
   }
 
   _effectStep++;
-  
+
   if (_effectStep >= maxFlashes * 2) {
     _effectStep = 0;
     flashPause = random(100, 5001); // between 0.1 and 5s

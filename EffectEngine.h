@@ -5,18 +5,11 @@
 #define MAX_EFFECT_DELAY 65535
 #define DEFAULT_EFFECT_SPEED 1000
 
-#if defined(ESPS_MODE_PIXEL)
-    #define DRIVER PixelDriver
-#elif defined(ESPS_MODE_SERIAL)
-    #define DRIVER SerialDriver
-#endif
+
+class Driver;
+
 
 class EffectEngine;
-struct CRGB {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-};
 
 /*
 * EffectFunc is the signiture used for all effects. Returns
@@ -29,6 +22,12 @@ struct EffectDesc {
 };
 
 class EffectEngine {
+public:
+    struct CRGB {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+    };
 
 private:
 
@@ -44,13 +43,13 @@ private:
     uint32_t _effectStep            = 0;            /* Shared mutable effect step counter */
 
     bool _initialized               = false;        /* Boolean indicating if the engine is initialzied */
-    DRIVER* _ledDriver              = nullptr;      /* Pointer to the active LED driver */
+    Driver* _ledDriver              = nullptr;      /* Pointer to the active LED driver */
     uint16_t _ledCount              = 0;            /* Number of RGB leds (not channels) */
 
 public:
     EffectEngine();
 
-    void begin(DRIVER* ledDriver, uint16_t ledCount);
+    void begin(Driver* ledDriver, uint16_t ledCount);
     void run();
 
     const char* getEffect()                 { return _activeEffect ? _activeEffect->name : nullptr; }

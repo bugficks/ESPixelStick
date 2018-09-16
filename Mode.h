@@ -21,10 +21,22 @@
 #define MODE_H_
 
 /* Output Mode - There can be only one! (-Conor MacLeod) */
+/*
+    not anymore, though you'll most likey get (especially if using FastLED):
+        section `.text' will not fit in region `iram1_0_seg'
+
+    try disabling some features here and or in FastLEDDriver.cpp
+*/
+
 #define ESPS_MODE_PIXEL
 //#define ESPS_MODE_SERIAL
+#define ESPS_MODE_FASTLED
 
-//#define ESPS_ENABLE_UDPRAW
-//#define ESPS_ENABLE_ARDUINO_OTA
+#define ESPS_ENABLE_UDPRAW
+#define ESPS_ENABLE_ARDUINO_OTA
+
+//#define ESPS_DRIVER_NAME "pixel"
+//#define ESPS_DRIVER_NAME "serial"
+#define ESPS_DRIVER_NAME "fastled|ws2813"
 
 #endif  // MODE_H_

@@ -25,7 +25,6 @@ public:
     virtual uint8_t *getData() = 0;
     virtual void setValue(uint16_t address, uint8_t value) = 0;
 
-    virtual void setGamma(bool gamma) { };
 
     virtual void show() = 0;
     virtual bool canRefresh() = 0;
@@ -35,7 +34,9 @@ public:
             show();
     }
 
-    virtual void setOption(const String &name, int value) {};
+    virtual void setGamma(bool gamma) { };
+    virtual void setOption(const String &name, int value) = 0;
+    virtual void updateOrder(PixelColor color) { };
 
     virtual const String &name() const = 0;
 };

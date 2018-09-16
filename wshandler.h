@@ -20,13 +20,7 @@
 #ifndef WSHANDLER_H_
 #define WSHANDLER_H_
 
-#if defined(ESPS_MODE_PIXEL)
-#include "PixelDriver.h"
-extern PixelDriver  pixels;     // Pixel object
-#elif defined(ESPS_MODE_SERIAL)
-#include "SerialDriver.h"
-extern SerialDriver serial;     // Serial object
-#endif
+#include "Driver.h"
 
 extern EffectEngine effects;    // EffectEngine for test modes
 
@@ -108,7 +102,7 @@ void procE(uint8_t *data, AsyncWebSocketClient *client) {
             DynamicJsonBuffer jsonBuffer;
             JsonObject &json = jsonBuffer.createObject();
 
-#if defined (ESPS_MODE_PIXEL)
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
             // Pixel Types
             JsonObject &p_type = json.createNestedObject("p_type");
             p_type["WS2811 800kHz"] = static_cast<uint8_t>(PixelType::WS2811);
@@ -122,8 +116,9 @@ void procE(uint8_t *data, AsyncWebSocketClient *client) {
             p_color["RBG"] = static_cast<uint8_t>(PixelColor::RBG);
             p_color["GBR"] = static_cast<uint8_t>(PixelColor::GBR);
             p_color["BGR"] = static_cast<uint8_t>(PixelColor::BGR);
+#endif
 
-#elif defined (ESPS_MODE_SERIAL)
+#if defined (ESPS_MODE_SERIAL)
             // Serial Protocols
             JsonObject &s_proto = json.createNestedObject("s_proto");
             s_proto["DMX512"] = static_cast<uint8_t>(SerialType::DMX512);
@@ -319,13 +314,13 @@ void procT(uint8_t *data, AsyncWebSocketClient *client) {
         }
 
         case '8': {  // View stream
-#if defined(ESPS_MODE_PIXEL)
-            client->binary(pixels.getData(), config.channel_count);
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
+            client->binary(driver->getData(), config.channel_count);
 #elif defined(ESPS_MODE_SERIAL)
             if (config.serial_type == SerialType::DMX512)
-                client->binary(&serial.getData()[1], config.channel_count);
+                client->binary(&driver->getData()[1], config.channel_count);
             else
-                client->binary(&serial.getData()[2], config.channel_count);
+                client->binary(&driver->getData()[2], config.channel_count);
 #endif
             break;
         }

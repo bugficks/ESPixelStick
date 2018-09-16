@@ -20,15 +20,17 @@
 #ifndef PIXELDRIVER_H_
 #define PIXELDRIVER_H_
 
+#include "Driver.h"
+
 #define UART_INV_MASK  (0x3f << 19)
 #define UART 1
 
 /* Gamma correction table */
 extern uint8_t GAMMA_TABLE[];
 
-/* 
+/*
 * Inverted 6N1 UART lookup table for ws2811, first 2 bits ignored.
-* Start and stop bits are part of the pixel stream. 
+* Start and stop bits are part of the pixel stream.
 */
 const char LOOKUP_2811[4] = {
     0b00110111,     // 00 - (1)000 100(0)
@@ -37,7 +39,7 @@ const char LOOKUP_2811[4] = {
     0b00000100      // 11 - (1)110 111(0)
 };
 
-/* 
+/*
 * 7N1 UART lookup table for GECE, first bit is ignored.
 * Start bit and stop bits are part of the packet.
 * Bits are backwards since we need MSB out.
@@ -70,25 +72,10 @@ const char LOOKUP_GECE[2] = {
 
 #define CYCLES_GECE_START   (F_CPU / 100000) // 10us
 
-/* Pixel Types */
-enum class PixelType : uint8_t {
-    WS2811,
-    GECE
-};
-
-/* Color Order */
-enum class PixelColor : uint8_t {
-    RGB,
-    GRB,
-    BRG,
-    RBG,
-    GBR,
-    BGR
-};
-
-class PixelDriver {
+class PixelDriver : public Driver {
  public:
     int begin();
+    int begin(const config_t *config);
     int begin(PixelType type);
     int begin(PixelType type, PixelColor color, uint16_t length);
     void setPin(uint8_t pin);
@@ -96,6 +83,8 @@ class PixelDriver {
     void updateOrder(PixelColor color);
     void ICACHE_RAM_ATTR show();
     uint8_t* getData();
+
+    void setOption(const String &name, int value);
 
     /* Set channel value at address */
     inline void setValue(uint16_t address, uint8_t value) {
@@ -105,6 +94,11 @@ class PixelDriver {
     /* Drop the update if our refresh rate is too high */
     inline bool canRefresh() {
         return (micros() - startTime) >= refreshTime;
+    }
+
+    const String &name() const
+    {
+        return _name;
     }
 
  private:
@@ -121,6 +115,8 @@ class PixelDriver {
     static uint8_t    rOffset;  // Index of red byte
     static uint8_t    gOffset;  // Index of green byte
     static uint8_t    bOffset;  // Index of blue byte
+
+    const String _name = "pixel";
 
     void ws2811_init();
     void gece_init();

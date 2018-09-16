@@ -1,5 +1,5 @@
 /******************************************************************
-*  
+*
 *       Project: ESPixelStick - An ESP8266 and E1.31 based pixel (And Serial!) driver
 *       Orginal ESPixelStickproject by 2015 Shelby Merrick
 *
@@ -8,8 +8,8 @@
 *              www.billporter.info
 *
 *       See Readme for other info and version history
-*   
-*  
+*
+*
 *This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or(at your option) any later version.
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,7 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 <http://www.gnu.org/licenses/>
 *
-*This work is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License. 
+*This work is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License.
 *To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/3.0/ or
 *send a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
 ******************************************************************/
@@ -35,9 +35,15 @@ extern "C" {
 #include <uart_register.h>
 }
 
+#ifdef ESPS_MODE_SERIAL
+
 /* Uart Buffer tracker */
 static const uint8_t *uart_buffer;
 static const uint8_t *uart_buffer_tail;
+
+int SerialDriver::begin(const config_t *config) {
+    return begin(&SEROUT_PORT, config->serial_type, config->channel_count, config->baudrate);
+}
 
 int SerialDriver::begin(HardwareSerial *theSerial, SerialType type,
         uint16_t length) {
@@ -191,3 +197,5 @@ void SerialDriver::show() {
 uint8_t* SerialDriver::getData() {
     return _serialdata;
 }
+
+#endif // #ifdef ESPS_MODE_SERIAL

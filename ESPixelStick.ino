@@ -46,6 +46,7 @@ const char passphrase[] = "ENTER_PASSPHRASE_HERE";
 #include "gamma.h"
 #include "udpraw.h"
 #include "ota.h"
+#include "driver.h"
 
 extern "C" {
 #include <user_interface.h>
@@ -97,14 +98,9 @@ AsyncMqttClient     mqtt;       // MQTT object
 Ticker              mqttTicker; // Ticker to handle MQTT
 EffectEngine        effects;    // Effects Engine
 UdpRaw              udpraw;
+
 // Output Drivers
-#if defined(ESPS_MODE_PIXEL)
-PixelDriver     pixels;         // Pixel object
-#elif defined(ESPS_MODE_SERIAL)
-SerialDriver    serial;         // Serial object
-#else
-#error "No valid output mode defined."
-#endif
+Driver *driver  = nullptr;
 
 /////////////////////////////////////////////////////////
 //
@@ -162,6 +158,21 @@ void setup() {
     loadConfig();
     if (config.hostname)
         WiFi.hostname(config.hostname);
+
+    // Initialize for our pixel type
+    driver = DriverFactory::create(ESPS_DRIVER_NAME);
+    driver->begin(&config);
+
+    LOG_PORT.print("- Driver: ");
+    LOG_PORT.println(driver->name());
+
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
+    driver->setOption("data_pin", DATA_PIN);
+    driver->setGamma(config.gamma);
+    updateGammaTable(config.gammaVal, config.briteVal);
+
+    effects.begin(driver, config.channel_count / 3);
+#endif
 
     // Setup WiFi Handlers
     wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
@@ -221,6 +232,7 @@ void setup() {
     }
 
 #ifdef ESPS_ENABLE_ARDUINO_OTA
+
     setupOTA();
 #endif
 
@@ -229,13 +241,8 @@ void setup() {
 #endif
 
     // Configure the outputs
-#if defined (ESPS_MODE_PIXEL)
-    pixels.setPin(DATA_PIN);
     updateConfig();
-    pixels.show();
-#else
-    updateConfig();
-#endif
+    driver->show();
 }
 
 /////////////////////////////////////////////////////////
@@ -537,7 +544,7 @@ void validateConfig() {
         config.mqtt_topic = "diy/esps/" + String(chipId);
     }
 
-#if defined(ESPS_MODE_PIXEL)
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
     // Set Mode
 //    config.devmode = DevMode::MPIXEL;
     config.devmode.MPIXEL = true;
@@ -616,17 +623,6 @@ void updateConfig() {
     // Zero out packet stats
     e131.stats.num_packets = 0;
 
-    // Initialize for our pixel type
-#if defined(ESPS_MODE_PIXEL)
-    pixels.begin(config.pixel_type, config.pixel_color, config.channel_count / 3);
-    pixels.setGamma(config.gamma);
-    updateGammaTable(config.gammaVal, config.briteVal);
-
-    effects.begin(&pixels, config.channel_count / 3);
-#elif defined(ESPS_MODE_SERIAL)
-    serial.begin(&SEROUT_PORT, config.serial_type, config.channel_count, config.baudrate);
-#endif
-
     LOG_PORT.print(F("- Listening for "));
     LOG_PORT.print(config.channel_count);
     LOG_PORT.print(F(" channels, from Universe "));
@@ -688,15 +684,16 @@ void dsDeviceConfig(JsonObject &json) {
     config.mqtt_password = json["mqtt"]["password"].as<String>();
     config.mqtt_topic = json["mqtt"]["topic"].as<String>();
 
-#if defined(ESPS_MODE_PIXEL)
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
     // Pixel
     config.pixel_type = PixelType(static_cast<uint8_t>(json["pixel"]["type"]));
     config.pixel_color = PixelColor(static_cast<uint8_t>(json["pixel"]["color"]));
     config.gamma = json["pixel"]["gamma"];
     config.gammaVal = json["pixel"]["gammaVal"];
     config.briteVal = json["pixel"]["briteVal"];
+#endif
 
-#elif defined(ESPS_MODE_SERIAL)
+#if defined(ESPS_MODE_SERIAL)
     // Serial
     config.serial_type = SerialType(static_cast<uint8_t>(json["serial"]["type"]));
     config.baudrate = BaudRate(static_cast<uint32_t>(json["serial"]["baudrate"]));
@@ -788,7 +785,7 @@ void serializeConfig(String &jsonString, bool pretty, bool creds) {
     e131["channel_count"] = config.channel_count;
     e131["multicast"] = config.multicast;
 
-#if defined(ESPS_MODE_PIXEL)
+#if defined(ESPS_MODE_PIXEL) or defined(ESPS_MODE_FASTLED)
     // Pixel
     JsonObject &pixel = json.createNestedObject("pixel");
     pixel["type"] = static_cast<uint8_t>(config.pixel_type);
@@ -796,8 +793,8 @@ void serializeConfig(String &jsonString, bool pretty, bool creds) {
     pixel["gamma"] = config.gamma;
     pixel["gammaVal"] = config.gammaVal;
     pixel["briteVal"] = config.briteVal;
-
-#elif defined(ESPS_MODE_SERIAL)
+#endif
+#if defined(ESPS_MODE_SERIAL)
     // Serial
     JsonObject &serial = json.createNestedObject("serial");
     serial["type"] = static_cast<uint8_t>(config.serial_type);
@@ -828,6 +825,9 @@ void saveConfig() {
         file.println(jsonString);
         LOG_PORT.println(F("* Configuration saved."));
     }
+
+    if(driver)
+        driver->updateOrder(config.pixel_color);
 }
 
 /////////////////////////////////////////////////////////
@@ -837,7 +837,6 @@ void saveConfig() {
 /////////////////////////////////////////////////////////
 
 void loop() {
-
 #ifdef ESPS_ENABLE_ARDUINO_OTA
     ArduinoOTA.handle();
 #endif
@@ -847,6 +846,9 @@ void loop() {
         delay(REBOOT_DELAY);
         ESP.restart();
     }
+
+    if(!driver)
+        return;
 
     // Render output for current data source
     switch (config.ds) {
@@ -898,11 +900,7 @@ void loop() {
                     }
 
                     for (int i = dataStart; i < dataStop; i++) {
-    #if defined(ESPS_MODE_PIXEL)
-                        pixels.setValue(i, data[buffloc]);
-    #elif defined(ESPS_MODE_SERIAL)
-                        serial.setValue(i, data[buffloc]);
-    #endif
+                        driver->setValue(i, data[buffloc]);
                         buffloc++;
                     }
                 }
@@ -919,12 +917,6 @@ void loop() {
     }
 
 /* Streaming refresh */
-#if defined(ESPS_MODE_PIXEL)
-    if (pixels.canRefresh())
-        pixels.show();
-#elif defined(ESPS_MODE_SERIAL)
-    if (serial.canRefresh())
-        serial.show();
-#endif
+    driver->refresh();
 }
 
