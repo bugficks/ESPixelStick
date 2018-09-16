@@ -24,4 +24,7 @@
 #define ESPS_MODE_PIXEL
 //#define ESPS_MODE_SERIAL
 
+//#define ESPS_ENABLE_UDPRAW
+//#define ESPS_ENABLE_ARDUINO_OTA
+
 #endif  // MODE_H_

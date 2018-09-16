@@ -44,6 +44,8 @@ const char passphrase[] = "ENTER_PASSPHRASE_HERE";
 #include "EFUpdate.h"
 #include "wshandler.h"
 #include "gamma.h"
+#include "udpraw.h"
+#include "ota.h"
 
 extern "C" {
 #include <user_interface.h>
@@ -94,7 +96,7 @@ Ticker              wifiTicker; // Ticker to handle WiFi
 AsyncMqttClient     mqtt;       // MQTT object
 Ticker              mqttTicker; // Ticker to handle MQTT
 EffectEngine        effects;    // Effects Engine
-
+UdpRaw              udpraw;
 // Output Drivers
 #if defined(ESPS_MODE_PIXEL)
 PixelDriver     pixels;         // Pixel object
@@ -217,6 +219,14 @@ void setup() {
             LOG_PORT.println(F("*** UNICAST INIT FAILED ****"));
         }
     }
+
+#ifdef ESPS_ENABLE_ARDUINO_OTA
+    setupOTA();
+#endif
+
+#ifdef ESPS_ENABLE_UDPRAW
+    udpraw.begin();
+#endif
 
     // Configure the outputs
 #if defined (ESPS_MODE_PIXEL)
@@ -825,8 +835,12 @@ void saveConfig() {
 //  Main Loop
 //
 /////////////////////////////////////////////////////////
+
 void loop() {
-    e131_packet_t packet;
+
+#ifdef ESPS_ENABLE_ARDUINO_OTA
+    ArduinoOTA.handle();
+#endif
 
     // Reboot handler
     if (reboot) {
@@ -839,6 +853,7 @@ void loop() {
         case DataSource::E131:
             // Parse a packet and update pixels
             if (!e131.isEmpty()) {
+                e131_packet_t packet;
                 e131.pull(&packet);
                 uint16_t universe = htons(packet.universe);
                 uint8_t *data = packet.property_values + 1;
